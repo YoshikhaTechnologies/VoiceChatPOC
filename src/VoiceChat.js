@@ -1,76 +1,114 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import io from 'socket.io-client';
-import Peer from 'simple-peer';
 
-const socket = io.connect('http://localhost:5000'); // Replace with your signaling server address
 
-function VoiceChat() {
-  const [myID, setMyID] = useState('');
-  const [otherUser, setOtherUser] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-  const myStreamRef = useRef();
-  const peerRef = useRef();
+const VoiceChat = () => {
+  const [micOn, setMicOn] = useState(true);
+  const [callActive, setCallActive] = useState(false);
+  const socketRef = useRef(null);
+  const userStream = useRef(null);
+  const mediaRecorder = useRef(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
-    // Get user media (microphone access)
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        myStreamRef.current = stream;
-        // Assign local stream to an audio element (optional, for local listening)
-        const audioElement = document.createElement('audio');
-        audioElement.srcObject = stream;
-        audioElement.play();
-      })
-      .catch(err => console.error('Error accessing audio stream:', err));
+    socketRef.current = io.connect('http://localhost:5000');
 
-    // Receive your own ID from the signaling server
-    socket.on('connect', () => {
-      setMyID(socket.id);
+    socketRef.current.on('audio-data', (base64Data) => {
+      playAudioChunk(base64Data);
     });
 
-    // When receiving a signal from another user
-    socket.on('signal', (data) => {
-      const peer = peerRef.current;
-      if (peer) {
-        peer.signal(data.signal);
-      }
-    });
+    return () => {
+      socketRef.current.disconnect();
+    };
   }, []);
 
-  const connectToPeer = () => {
-    const peer = new Peer({
-      initiator: true, // If you want to initiate the call
-      trickle: false,
-      stream: myStreamRef.current
-    });
+  const playAudioChunk = (base64Data) => {
+    const binaryString = window.atob(base64Data);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
 
-    peer.on('signal', signal => {
-      socket.emit('signal', { signal, to: otherUser, from: myID });
-    });
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
 
-    peer.on('stream', stream => {
-      const audioElement = document.createElement('audio');
-      audioElement.srcObject = stream;
-      audioElement.play();
-    });
+    const audioBlob = new Blob([bytes], { type: 'audio/webm; codecs=opus' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.play();
+  };
 
-    peerRef.current = peer;
-    setIsConnected(true);
+  const startCall = () => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      userStream.current = stream;
+
+      mediaRecorder.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+      mediaRecorder.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          const reader = new FileReader();
+          reader.readAsDataURL(event.data);
+          reader.onloadend = () => {
+            const base64String = reader.result.split(',')[1];
+            socketRef.current.emit('audio-data', base64String);
+          };
+        }
+      };
+
+      mediaRecorder.current.start(500);
+      setCallActive(true);
+    }).catch((err) => console.error('Error accessing microphone:', err));
+  };
+
+  const endCall = () => {
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+    }
+    if (userStream.current) {
+      userStream.current.getTracks().forEach(track => track.stop());
+    }
+    setCallActive(false);
+  };
+
+  const toggleMic = () => {
+    if (userStream.current) {
+      const audioTrack = userStream.current.getAudioTracks()[0];
+      audioTrack.enabled = !audioTrack.enabled;
+      setMicOn(audioTrack.enabled);
+    }
   };
 
   return (
-    <div>
-      <h2>Live Voice Chat</h2>
-      <input
-        type="text"
-        placeholder="Enter other user ID"
-        value={otherUser}
-        onChange={(e) => setOtherUser(e.target.value)}
-      />
-      <button onClick={connectToPeer}>Connect</button>
-      {isConnected && <p>Connected to {otherUser}</p>}
-    </div>
+      <div className="voice-chat-box">
+        <h1 className="title">Live Voice Chat</h1>
+
+        <div className="button-container">
+          <button className="btn start-btn" onClick={startCall} disabled={callActive}>
+            <i className="fas fa-microphone"></i> Start Call
+          </button>
+          <button className="btn stop-btn" onClick={endCall} disabled={!callActive}>
+            <i className="fas fa-stop"></i> End Call
+          </button>
+        </div>
+
+        {callActive && (
+            <div className="mic-toggle-container">
+              <button className="btn toggle-btn" onClick={toggleMic}>
+                {micOn ? (
+                    <>
+                      <i className="fas fa-microphone-slash"></i> Mute Mic
+                    </>
+                ) : (
+                    <>
+                      <i className="fas fa-microphone"></i> Unmute Mic
+                    </>
+                )}
+              </button>
+            </div>
+        )}
+
+        {/* <audio ref={audioRef} controls autoPlay className="audio-player" /> */}
+      </div>
   );
-}
+};
 
 export default VoiceChat;

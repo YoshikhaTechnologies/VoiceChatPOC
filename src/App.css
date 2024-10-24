@@ -1,38 +1,67 @@
-.App {
+/* VoiceChat.css */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f4f4;
+}
+
+.voice-chat-box {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  width: 300px; /* Reduced width for a more compact design */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.title {
+  font-size: 1.5em; /* Reduced font size */
+  margin-bottom: 15px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.button-container {
+  margin-bottom: 15px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.btn {
+  padding: 8px 15px; /* Smaller padding for compact buttons */
+  font-size: 1em; /* Smaller font size */
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  margin: 8px;
+  color: #fff;
 }
 
-.App-link {
-  color: #61dafb;
+.start-btn {
+  background-color: #28a745;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.stop-btn {
+  background-color: #dc3545;
+}
+
+.toggle-btn {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.btn i {
+  margin-right: 6px;
+  font-size: 1em; /* Smaller icon size */
+}
+
+.mic-toggle-container {
+  margin-top: 15px;
+}
+
+.audio-player {
+  margin-top: 15px;
+  width: 100%;
+  border-radius: 5px;
 }
